@@ -14,7 +14,7 @@ namespace DuplicateFinder
         public DirectoryManager(string fileInput, string directoryInput)
         {
             _fileInput = fileInput;
-            _directoryInput = directoryInput;
+            _directoryInput = directoryInput == "*" ? "C:\\" : directoryInput;
             _foundMatches = new();
         }
 
@@ -50,72 +50,79 @@ namespace DuplicateFinder
 
         public void TraverseDirectory(string directoryName)
         {
-            string[] files = Directory.GetFiles(directoryName);
-            string[] folders = Directory.GetDirectories(directoryName);
-
-            if (files == null || files.Length == 0)
+            try
             {
-                return;
-            }
+                string[] files = Directory.GetFiles(directoryName);
+                string[] folders = Directory.GetDirectories(directoryName);
 
-            foreach (string file in files)
-            {
-                string[] splittedFileName = file.Split('\\');
-                string fileName = splittedFileName[splittedFileName.Length - 1];
-
-                if (_isSearchForSpecificFile)
+                if (files == null || files.Length == 0)
                 {
-                    if (string.Equals(fileName, _fileInput, StringComparison.OrdinalIgnoreCase))
-                    {
-                        _foundMatches.Add(file);
-                    }
+                    return;
                 }
-                else
-                {
-                    if (_fileNameWildcard && _extensionWildcard)
-                    {
-                        _foundMatches.Add(file);
-                    }
-                    else if (_fileNameWildcard && !_extensionWildcard)
-                    {
-                        int lastIndexOfDot = fileName.LastIndexOf('.');
-                        string fileExtension = fileName.Substring(lastIndexOfDot + 1);
-                        int lastIndexOfDotForInputFile = _fileInput.LastIndexOf('.');
-                        string inputFileExtension = _fileInput.Substring(lastIndexOfDotForInputFile + 1);
 
-                        if (string.Equals(inputFileExtension, fileExtension, StringComparison.OrdinalIgnoreCase)) {
+                foreach (string file in files)
+                {
+                    string[] splittedFileName = file.Split('\\');
+                    string fileName = splittedFileName[splittedFileName.Length - 1];
+
+                    if (_isSearchForSpecificFile)
+                    {
+                        if (string.Equals(fileName, _fileInput, StringComparison.OrdinalIgnoreCase))
+                        {
                             _foundMatches.Add(file);
                         }
                     }
-                    else if (!_fileNameWildcard && _extensionWildcard)
+                    else
                     {
-                        int lastIndexOfDot = fileName.LastIndexOf('.');
-                        string name = fileName.Substring(0, lastIndexOfDot);
-                        int lastIndexOfDotForInputFile = _fileInput.LastIndexOf('.');
-
-                        if (lastIndexOfDotForInputFile < 0)
+                        if (_fileNameWildcard && _extensionWildcard)
                         {
-                            if (string.Equals(_fileInput, name, StringComparison.OrdinalIgnoreCase))
+                            _foundMatches.Add(file);
+                        }
+                        else if (_fileNameWildcard && !_extensionWildcard)
+                        {
+                            int lastIndexOfDot = fileName.LastIndexOf('.');
+                            string fileExtension = fileName.Substring(lastIndexOfDot + 1);
+                            int lastIndexOfDotForInputFile = _fileInput.LastIndexOf('.');
+                            string inputFileExtension = _fileInput.Substring(lastIndexOfDotForInputFile + 1);
+
+                            if (string.Equals(inputFileExtension, fileExtension, StringComparison.OrdinalIgnoreCase)) {
+                                _foundMatches.Add(file);
+                            }
+                        }
+                        else if (!_fileNameWildcard && _extensionWildcard)
+                        {
+                            int lastIndexOfDot = fileName.LastIndexOf('.');
+                            string name = fileName.Substring(0, lastIndexOfDot);
+                            int lastIndexOfDotForInputFile = _fileInput.LastIndexOf('.');
+
+                            if (lastIndexOfDotForInputFile < 0)
+                            {
+                                if (string.Equals(_fileInput, name, StringComparison.OrdinalIgnoreCase))
+                                {
+                                    _foundMatches.Add(file);
+                                }
+
+                                continue;
+                            } 
+
+                            string inputFileName = _fileInput.Substring(0 ,lastIndexOfDotForInputFile);
+
+                            if (string.Equals(inputFileName, name, StringComparison.OrdinalIgnoreCase))
                             {
                                 _foundMatches.Add(file);
                             }
-
-                            continue;
-                        } 
-
-                        string inputFileName = _fileInput.Substring(0 ,lastIndexOfDotForInputFile);
-
-                        if (string.Equals(inputFileName, name, StringComparison.OrdinalIgnoreCase))
-                        {
-                            _foundMatches.Add(file);
                         }
                     }
                 }
-            }
 
-            foreach (var folder in folders)
+                foreach (var folder in folders)
+                {
+                    TraverseDirectory(folder);
+                }
+            }
+            catch (Exception)
             {
-                TraverseDirectory(folder);
+                // exception caused by not having access to specific directory.
             }
         }
 
