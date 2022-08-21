@@ -7,6 +7,9 @@ namespace DuplicateFinder
         private readonly string _fileInput;
         private readonly string _directoryInput;
         private readonly HashSet<string> _foundMatches;
+        private bool _isSearchForSpecificFile;
+        private bool _fileNameWildcard;
+        private bool _extensionWildcard;
 
         public DirectoryManager(string fileInput, string directoryInput)
         {
@@ -30,9 +33,12 @@ namespace DuplicateFinder
 
         public List<string> Search()
         {
-            TraverseDirectory(_directoryInput);
-
             List<string> fullFileLocationOfMatches = new();
+            _isSearchForSpecificFile = IsSearchForSpecificFile(_fileInput);
+            _fileNameWildcard = UseWildcardName(_fileInput);
+            _extensionWildcard = UseWildcardExtension(_fileInput);
+
+            TraverseDirectory(_directoryInput);
 
             foreach (string match in _foundMatches)
             {
@@ -57,10 +63,53 @@ namespace DuplicateFinder
                 string[] splittedFileName = file.Split('\\');
                 string fileName = splittedFileName[splittedFileName.Length - 1];
 
-                // TODO: Case insensitive parameter? Wildcards?
-                if (fileName == _fileInput)
+                if (_isSearchForSpecificFile)
                 {
-                    _foundMatches.Add(file);
+                    if (string.Equals(fileName, _fileInput, StringComparison.OrdinalIgnoreCase))
+                    {
+                        _foundMatches.Add(file);
+                    }
+                }
+                else
+                {
+                    if (_fileNameWildcard && _extensionWildcard)
+                    {
+                        _foundMatches.Add(file);
+                    }
+                    else if (_fileNameWildcard && !_extensionWildcard)
+                    {
+                        int lastIndexOfDot = fileName.LastIndexOf('.');
+                        string fileExtension = fileName.Substring(lastIndexOfDot + 1);
+                        int lastIndexOfDotForInputFile = _fileInput.LastIndexOf('.');
+                        string inputFileExtension = _fileInput.Substring(lastIndexOfDotForInputFile + 1);
+
+                        if (string.Equals(inputFileExtension, fileExtension, StringComparison.OrdinalIgnoreCase)) {
+                            _foundMatches.Add(file);
+                        }
+                    }
+                    else if (!_fileNameWildcard && _extensionWildcard)
+                    {
+                        int lastIndexOfDot = fileName.LastIndexOf('.');
+                        string name = fileName.Substring(0, lastIndexOfDot);
+                        int lastIndexOfDotForInputFile = _fileInput.LastIndexOf('.');
+
+                        if (lastIndexOfDotForInputFile < 0)
+                        {
+                            if (string.Equals(_fileInput, name, StringComparison.OrdinalIgnoreCase))
+                            {
+                                _foundMatches.Add(file);
+                            }
+
+                            continue;
+                        } 
+
+                        string inputFileName = _fileInput.Substring(0 ,lastIndexOfDotForInputFile);
+
+                        if (string.Equals(inputFileName, name, StringComparison.OrdinalIgnoreCase))
+                        {
+                            _foundMatches.Add(file);
+                        }
+                    }
                 }
             }
 
@@ -70,7 +119,7 @@ namespace DuplicateFinder
             }
         }
 
-        public void TraverseAndPrintDirectory(string directoryName, int tabulation = 0)
+        public void PrintDirectory(string directoryName, int tabulation = 0)
         {
             Dictionary<string, string> tabulationResult = CalculateTabulation(tabulation);
 
@@ -96,7 +145,7 @@ namespace DuplicateFinder
 
             foreach (var folder in folders)
             {
-                TraverseAndPrintDirectory(folder, tabulation + 1);
+                PrintDirectory(folder, tabulation + 1);
             }
         }
 
@@ -120,6 +169,49 @@ namespace DuplicateFinder
             result.Add("filesTabulation", filesTabulation);
 
             return result;
+        }
+
+        private bool IsSearchForSpecificFile(string inputFile)
+        {
+            int lastIndexOfDot = inputFile.LastIndexOf('.');
+
+            if (lastIndexOfDot < 0)
+            {
+                return false;
+            }
+
+            string fileName = inputFile.Substring(0, lastIndexOfDot);
+            string extension = inputFile.Substring(lastIndexOfDot + 1);
+
+            return (fileName != "*" && extension != "*");
+        }
+
+        private bool UseWildcardExtension(string inputFile)
+        {
+            int lastIndexOfDot = inputFile.LastIndexOf('.');
+
+            if (lastIndexOfDot < 0)
+            {
+                return true;
+            }
+
+            string extension = inputFile.Substring(lastIndexOfDot + 1);
+
+            return extension == "*";
+        }
+
+        private bool UseWildcardName(string inputFile)
+        {
+            int lastIndexOfDot = inputFile.LastIndexOf('.');
+
+            if (lastIndexOfDot < 0)
+            {
+                return inputFile == "*";
+            }
+
+            string fileName = inputFile.Substring(0, lastIndexOfDot);
+
+            return fileName == "*";
         }
     }
 }
